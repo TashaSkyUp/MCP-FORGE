@@ -1,0 +1,15 @@
+<ul id="tools" class="tool-list">
+  {% for mod in tools %}
+  <li class="tool-item">
+    <span class="tool-name">{{ mod }}</span>
+    <button
+      class="remove-button"
+      hx-delete="/tools/{{ mod }}"
+      hx-target="#tools"
+      hx-swap="outerHTML"
+      hx-confirm="Remove {{ mod }}?">Remove</button>
+  </li>
+  {% else %}
+  <li id="no-tools">No modules registered.</li>
+  {% endfor %}
+</ul>

@@ -1,8 +1,13 @@
 body {
   font-family: Arial, sans-serif;
-  max-width: 800px;
   margin: 2rem auto;
+  max-width: 800px;
   padding: 0 1rem;
+}
+
+.container {
+  max-width: 800px;
+  margin: auto;
 }
 
 header {
@@ -32,25 +37,27 @@ button {
   cursor: pointer;
 }
 
-ul {
+ul, .tool-list {
   list-style-type: none;
   padding-left: 0;
 }
 
-li {
+li, .tool-item {
   margin-bottom: 0.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border-bottom: 1px solid #ddd;
+  padding: 0.5rem 0;
 }
 
-.remove-btn {
+.remove-btn, .remove-button {
   background-color: #e53e3e;
   color: #fff;
   border: none;
 }
 
-.remove-btn:hover {
+.remove-btn:hover, .remove-button:hover {
   background-color: #c53030;
 }
 
@@ -65,4 +72,9 @@ legend {
 
 #no-tools {
   font-style: italic;
+}
+
+.message {
+  margin-top: 1rem;
+  min-height: 1.2em;
 }
