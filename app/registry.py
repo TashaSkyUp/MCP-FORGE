@@ -163,7 +163,7 @@ def load_example_params(base_dir: str) -> Dict[str, Dict[str, Any]]:
                     module = os.path.splitext(fn)[0]
                     params = meta.get('example_params', {})
                     data[module] = params
-                except Exception:
+                except (json.JSONDecodeError, IOError):
                     continue
         return data
     return _impl()
