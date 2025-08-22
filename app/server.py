@@ -223,7 +223,7 @@ def build_app():
         return mcp.list_collected()
 
     @app.post("/tools", status_code=201)
-    async def web_create_tool(request: Request):
+    async def web_create_tool(request: Request) -> Response:
         if request.headers.get("content-type", "").startswith("application/json"):
             data = await request.json()
         else:
