@@ -4,24 +4,47 @@
   <meta charset="utf-8" />
   <title>MCPForge</title>
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    .container { max-width: 800px; margin: auto; }
+    form { margin-bottom: 1rem; }
+    .field { margin-bottom: 0.5rem; }
+    label { display: block; font-weight: bold; margin-bottom: 0.25rem; }
+    input[type="text"], textarea { width: 100%; padding: 0.5rem; }
+    button { padding: 0.5rem 1rem; margin-top: 0.5rem; }
+    .tool-list { list-style: none; padding: 0; }
+    .tool-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #ddd; }
+    .message { margin-top: 1rem; min-height: 1.2em; }
+  </style>
 </head>
 <body>
-  <h1>MCPForge Tool Manager</h1>
-  <form hx-post="/tools" hx-target="#tools" hx-swap="outerHTML">
-    <label>Snippet Name <input type="text" name="snippet_name"/></label><br/>
-    <label>Code Snippet<br/>
-      <textarea name="code" rows="6" cols="60"></textarea>
-    </label><br/>
-    <button type="submit">Ingest</button>
-  </form>
-  <h2>Registered Modules</h2>
-  <ul id="tools">
-    {% for mod in tools %}
-    <li>
-      {{ mod }}
-      <button hx-delete="/tools/{{ mod }}" hx-target="#tools" hx-swap="outerHTML">Remove</button>
-    </li>
-    {% endfor %}
-  </ul>
+  <div class="container">
+    <h1>MCPForge Tool Manager</h1>
+    <form hx-post="/tools" hx-target="#tools" hx-swap="outerHTML">
+      <div class="field">
+        <label for="snippet_name">Snippet Name</label>
+        <input id="snippet_name" type="text" name="snippet_name" required />
+      </div>
+      <div class="field">
+        <label for="code">Code Snippet</label>
+        <textarea id="code" name="code" rows="6" cols="60" required></textarea>
+      </div>
+      <button type="submit">Ingest</button>
+    </form>
+    <div id="message" class="message"></div>
+    <h2>Registered Modules</h2>
+    {% include 'tools.html' %}
+  </div>
+  <script>
+    document.body.addEventListener('toolAdded', function() {
+      document.getElementById('message').textContent = 'Tool added successfully';
+    });
+    document.body.addEventListener('toolRemoved', function() {
+      document.getElementById('message').textContent = 'Tool removed';
+    });
+    document.body.addEventListener('toolError', function() {
+      document.getElementById('message').textContent = 'Operation failed';
+    });
+  </script>
 </body>
 </html>

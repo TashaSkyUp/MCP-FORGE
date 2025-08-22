@@ -223,7 +223,7 @@ def build_app():
         return mcp.list_collected()
 
     @app.post("/tools", status_code=201)
-    async def web_create_tool(request: Request) -> JSONResponse:
+    async def web_create_tool(request: Request) -> Response:
         if request.headers.get("content-type", "").startswith("application/json"):
             data = await request.json()
         else:
@@ -237,11 +237,24 @@ def build_app():
             os.environ["USE_MOCK_LLM"] = "1"
         result = mcp.ingest_snippet(snippet_name, code)
         status = 201 if result.get("created") else 400
+        if request.headers.get("hx-request"):
+            tools = mcp.list_collected()
+            headers = {"HX-Trigger": "toolAdded" if status == 201 else "toolError"}
+            return templates.TemplateResponse(
+                "tools.html", {"request": request, "tools": tools},
+                status_code=status, headers=headers
+            )
         return JSONResponse(result, status_code=status)
 
     @app.delete("/tools/{module}")
-    async def web_remove_tool(module: str) -> dict[str, bool]:
+    async def web_remove_tool(module: str, request: Request) -> Response:
         ok = mcp.remove_collected(module)
+        if request.headers.get("hx-request"):
+            tools = mcp.list_collected()
+            headers = {"HX-Trigger": "toolRemoved" if ok else "toolError"}
+            return templates.TemplateResponse(
+                "tools.html", {"request": request, "tools": tools}, headers=headers
+            )
         return {"removed": ok}
 
     @app.get("/", response_class=HTMLResponse)
