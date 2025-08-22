@@ -237,8 +237,8 @@ def build_app():
             os.environ["USE_MOCK_LLM"] = "1"
         result = mcp.ingest_snippet(snippet_name, code)
         status = 201 if result.get("created") else 400
-        tools = mcp.list_collected()
         if request.headers.get("hx-request"):
+            tools = mcp.list_collected()
             headers = {"HX-Trigger": "toolAdded" if status == 201 else "toolError"}
             return templates.TemplateResponse(
                 "tools.html", {"request": request, "tools": tools},
