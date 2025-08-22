@@ -207,7 +207,7 @@ def build_app():
     mcp = build_server()
 
     from fastapi import FastAPI, Request, HTTPException
-    from fastapi.responses import PlainTextResponse, HTMLResponse, JSONResponse
+    from fastapi.responses import PlainTextResponse, HTMLResponse, JSONResponse, Response
     from fastapi.templating import Jinja2Templates
     globals()["Request"] = Request
 
@@ -218,12 +218,18 @@ def build_app():
     async def web_health() -> PlainTextResponse:
         return PlainTextResponse(mcp.forge_health())
 
+    @app.get("/static/style.css", response_class=PlainTextResponse)
+    async def style_css() -> PlainTextResponse:
+        from pathlib import Path
+        css = Path("app/static/style.css").read_text()
+        return PlainTextResponse(css)
+
     @app.get("/tools")
     async def web_list_tools() -> list[str]:
         return mcp.list_collected()
 
     @app.post("/tools", status_code=201)
-    async def web_create_tool(request: Request) -> JSONResponse:
+    async def web_create_tool(request: Request) -> Response:
         if request.headers.get("content-type", "").startswith("application/json"):
             data = await request.json()
         else:
@@ -237,12 +243,27 @@ def build_app():
             os.environ["USE_MOCK_LLM"] = "1"
         result = mcp.ingest_snippet(snippet_name, code)
         status = 201 if result.get("created") else 400
+        if request.headers.get("hx-request"):
+            tools = mcp.list_collected()
+            headers = {"HX-Trigger": "toolAdded" if status == 201 else "toolError"}
+            return templates.TemplateResponse(
+                "tools.html", {"request": request, "tools": tools},
+                status_code=status, headers=headers
+            )
         return JSONResponse(result, status_code=status)
 
     @app.delete("/tools/{module}")
-    async def web_remove_tool(module: str) -> dict[str, bool]:
+    async def web_remove_tool(module: str, request: Request) -> Response:
         ok = mcp.remove_collected(module)
-        return {"removed": ok}
+        if request.headers.get("hx-request"):
+            tools = mcp.list_collected()
+            headers = {"HX-Trigger": "toolRemoved" if ok else "toolError"}
+            status = 200 if ok else 404
+            return templates.TemplateResponse(
+                "tools.html", {"request": request, "tools": tools},
+                status_code=status, headers=headers,
+            )
+        return JSONResponse({"removed": ok}, status_code=200 if ok else 404)
 
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request) -> HTMLResponse:

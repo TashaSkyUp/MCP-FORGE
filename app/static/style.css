@@ -1,0 +1,80 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 2rem auto;
+  max-width: 800px;
+  padding: 0 1rem;
+}
+
+.container {
+  max-width: 800px;
+  margin: auto;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+form {
+  margin-bottom: 2rem;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+input[type="text"], textarea {
+  width: 100%;
+  padding: 0.5rem;
+  margin-top: 0.25rem;
+  box-sizing: border-box;
+}
+
+button {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+ul, .tool-list {
+  list-style-type: none;
+  padding-left: 0;
+}
+
+li, .tool-item {
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #ddd;
+  padding: 0.5rem 0;
+}
+
+.remove-btn, .remove-button {
+  background-color: #e53e3e;
+  color: #fff;
+  border: none;
+}
+
+.remove-btn:hover, .remove-button:hover {
+  background-color: #c53030;
+}
+
+fieldset {
+  border: 1px solid #ccc;
+  padding: 1rem;
+}
+
+legend {
+  font-weight: bold;
+}
+
+#no-tools {
+  font-style: italic;
+}
+
+.message {
+  margin-top: 1rem;
+  min-height: 1.2em;
+}
