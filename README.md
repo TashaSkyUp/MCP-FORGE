@@ -49,8 +49,7 @@ HOST=0.0.0.0 PORT=8765 python run.py
 ```
 
 By default, the server uses the `sse` transport, which exposes an HTTP endpoint at
-`/mcp`.  You can change the transport by setting `MCP_TRANSPORT` (e.g. `http` or
-`streamable-http`) but SSE is recommended.
+`/mcp`. This is the only supported transport.
 
 ## Ingesting Code
 

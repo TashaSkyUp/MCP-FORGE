@@ -7,6 +7,13 @@ from app.server import main as server_main
 TEST_HOST = "127.0.0.1"
 TEST_PORT = 8765
 
+@pytest.fixture(autouse=True)
+def clean_registry():
+    """A fixture to clean the registry directory before each test."""
+    import shutil
+    if os.path.isdir("registry"):
+        shutil.rmtree("registry")
+
 @pytest.fixture(scope="session")
 def server():
     """A pytest fixture to run the MCPForge server in a background thread."""
