@@ -141,7 +141,7 @@ def delete_tool_module(base_dir: str, module_name: str) -> bool:
             removed = True
         if os.path.exists(meta_path):
             os.remove(meta_path)
-            removed = True or removed
+            removed = True
         return removed
     return _impl()
 
