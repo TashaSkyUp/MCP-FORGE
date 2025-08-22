@@ -56,13 +56,25 @@ def _parse_functions(code: str) -> List[Dict[str, Any]]:
 
 def _prepare_snippet(text: str) -> str:
     """Normalize user-submitted text to executable Python code."""
+
     def _impl() -> str:
         import re
         import ast
         import textwrap
+
+        # First try to extract fenced code blocks `````python ... `````".
         fence = re.search(r"```(?:python)?\n([\s\S]*?)```", text)
         candidate = fence.group(1) if fence else text
+
+        # If no fences are present but a ``def`` appears later in the text,
+        # heuristically grab everything from the first ``def`` onward.  This
+        # lets users submit prose followed by code without explicit fencing.
+        if not fence and "def " in candidate:
+            start = candidate.find("def ")
+            candidate = candidate[start:]
+
         candidate = textwrap.dedent(candidate).strip()
+
         try:
             ast.parse(candidate)
             return candidate
@@ -73,6 +85,7 @@ def _prepare_snippet(text: str) -> str:
                 return rewritten
             except Exception:
                 return candidate
+
     return _impl()
 
 def build_server():
