@@ -14,6 +14,7 @@ This document outlines the existing and planned features for MCPForge.
 | Customizable Host/Port | Customize host and port via environment variables. | 2025-08-21* |
 | Transport Flexibility | Supports `sse`, `http`, and `streamable-http` transports. | 2025-08-21* |
 | Web-Based Tool Management Interface | REST endpoints and a simple HTML UI for managing tools. | 2025-08-22* |
+| Tool Testing with Example Parameters | LLM generates example parameters for tools, stored in the registry and testable via the UI. | 2025-08-22* |
 
 *\*Note: Implementation dates are placeholders. Please update them with the actual dates.*
 

@@ -11,7 +11,8 @@ from typing import List, Dict, Any
 def choose_tools_with_gpt(code: str, fn_summaries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Ask OpenAI gpt-4.1-nano to select functions from ``fn_summaries`` to expose
-    as MCP tools and to provide concise names and descriptions.
+    as MCP tools, provide concise names and descriptions, **and** supply example
+    parameters that can be used to test each tool.
 
     Parameters
     ----------
@@ -28,7 +29,9 @@ def choose_tools_with_gpt(code: str, fn_summaries: List[Dict[str, Any]]) -> List
         A list of dictionaries for each selected tool with keys:
         ``original_name`` – the original function name in the snippet;
         ``tool_name`` – a kebab or snake-cased name to use for the MCP tool;
-        ``description`` – a concise description (<= 120 characters).
+        ``description`` – a concise description (<= 120 characters);
+        ``example_params`` – a mapping of argument names to example values that
+        can be used to invoke the tool.
 
     Notes
     -----
@@ -39,8 +42,16 @@ def choose_tools_with_gpt(code: str, fn_summaries: List[Dict[str, Any]]) -> List
     def _call_openai() -> List[Dict[str, Any]]:
         import os
         if os.getenv("USE_MOCK_LLM"):
-            name = os.getenv("MOCK_LLM_FUNCTION", "add")
-            return [{"original_name": name, "tool_name": name, "description": f"{name} tool"}]
+            name = os.getenv("MOCK_LLM_FUNCTION", fn_summaries[0]["name"]) if fn_summaries else "tool"
+            # Generate simple example parameters based on the function's args
+            summary = next((s for s in fn_summaries if s["name"] == name), fn_summaries[0]) if fn_summaries else {"args": []}
+            params = {arg[0]: i + 1 for i, arg in enumerate(summary.get("args", []))}
+            return [{
+                "original_name": name,
+                "tool_name": name,
+                "description": f"{name} tool",
+                "example_params": params,
+            }]
         # Deferred import: only import when the function is called.
         from openai import OpenAI
         import json
@@ -50,7 +61,8 @@ def choose_tools_with_gpt(code: str, fn_summaries: List[Dict[str, Any]]) -> List
             "You are a careful code curator. Given candidate Python functions, "
             "pick only safe, side‑effect‑light functions to expose as MCP tools. "
             "Return strict JSON: an array of objects with fields "
-            "`original_name`, `tool_name` (kebab or snake case), and `description` (<=120 chars). "
+            "`original_name`, `tool_name` (kebab or snake case), `description` (<=120 chars), "
+            "and `example_params` – a JSON object of argument names to example values. "
             "Prefer tiny, deterministic tools. If nothing is safe/useful, return []."
         )
         user = {

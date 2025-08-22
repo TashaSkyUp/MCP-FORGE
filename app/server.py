@@ -102,11 +102,19 @@ def build_server():
     """Construct and return the FastMCP server configured with admin tools."""
     def _impl():
         from fastmcp import FastMCP
-        from .registry import ensure_dirs, load_all_registered, write_tool_module, safe_mod_name, delete_tool_module
+        from .registry import (
+            ensure_dirs,
+            load_all_registered,
+            write_tool_module,
+            safe_mod_name,
+            delete_tool_module,
+            load_example_params,
+        )
 
         REG_DIR = ensure_dirs("./registry")
         mcp = FastMCP("MCPForge (single port)")
         module_tool_map: Dict[str, str] = {}
+        module_params_map: Dict[str, Dict[str, Any]] = {}
 
         @mcp.tool(name="collector.list", description="List collected tool modules currently registered.")
         def list_collected() -> List[str]:
@@ -125,6 +133,8 @@ def build_server():
             ok = delete_tool_module(REG_DIR, module_name)
             if ok and module_name in module_tool_map:
                 del module_tool_map[module_name]
+            if ok and module_name in module_params_map:
+                del module_params_map[module_name]
             return ok
 
         @mcp.tool(name="collector.ingest_python", description="Ingest a Python snippet and expose chosen functions as tools.")
@@ -140,10 +150,12 @@ def build_server():
                 chosen = []
             if not chosen:
                 f0 = funcs[0]
+                example = {arg[0]: i + 1 for i, arg in enumerate(f0["args"])}
                 chosen = [{
                     "original_name": f0["name"],
                     "tool_name": f0["name"],
-                    "description": (f0["doc"] or "No description.")[:120]
+                    "description": (f0["doc"] or "No description.")[:120],
+                    "example_params": example,
                 }]
             created: List[str] = []
             base = safe_mod_name(snippet_name)
@@ -152,16 +164,19 @@ def build_server():
                 orig = c.get("original_name")
                 tname = c.get("tool_name") or orig
                 desc = c.get("description") or f"{orig} tool"
+                params = c.get("example_params", {})
                 func_info = next((f for f in funcs if f["name"] == orig), None)
                 if not func_info:
                     continue
                 arg_spec = func_info["args"]
                 mod_name = f"{base}_{idx}"
-                write_tool_module("./registry", mod_name, code, orig, tname, desc, arg_spec)
+                write_tool_module("./registry", mod_name, code, orig, tname, desc, arg_spec, params)
                 created.append(mod_name)
+                module_params_map[mod_name] = params
                 idx += 1
             new_map = load_all_registered(mcp, "./registry")
             module_tool_map.update(new_map)
+            module_params_map.update(load_example_params("./registry"))
             return {"created": created}
 
         @mcp.tool(name="forge_health", description="Health check for the MCP Forge server.")
@@ -190,11 +205,15 @@ def build_server():
             return "ok | " + " | ".join(report)
 
         module_tool_map.update(load_all_registered(mcp, "./registry"))
+        module_params_map.update(load_example_params("./registry"))
 
         # Expose helper functions for the web interface
         mcp.list_collected = list_collected.fn  # type: ignore[attr-defined]
         mcp.remove_collected = remove_collected.fn  # type: ignore[attr-defined]
         mcp.ingest_snippet = ingest_python.fn  # type: ignore[attr-defined]
+        # Expose maps for the web interface
+        mcp.module_tool_map = module_tool_map  # type: ignore[attr-defined]
+        mcp.module_params = module_params_map  # type: ignore[attr-defined]
         mcp.forge_health = forge_health.fn  # type: ignore[attr-defined]
 
         return mcp
@@ -206,10 +225,11 @@ def build_app():
 
     mcp = build_server()
 
-    from fastapi import FastAPI, Request, HTTPException
+    from fastapi import FastAPI, Request, HTTPException, Response
     from fastapi.responses import PlainTextResponse, HTMLResponse, JSONResponse
     from fastapi.templating import Jinja2Templates
     globals()["Request"] = Request
+    globals()["Response"] = Response
 
     app = FastAPI(title="MCPForge Web UI")
     templates = Jinja2Templates(directory="app/templates")
@@ -256,6 +276,19 @@ def build_app():
                 "tools.html", {"request": request, "tools": tools}, headers=headers
             )
         return {"removed": ok}
+
+    @app.post("/tools/{module}/test")
+    async def web_test_tool(module: str, request: Request) -> Response:
+        tool_name = mcp.module_tool_map.get(module)
+        params = mcp.module_params.get(module)
+        if not tool_name or params is None:
+            raise HTTPException(404, "module not found")
+        tool = await mcp.get_tool(tool_name)
+        result = await tool.run(params)
+        output = result.structured_content or {"result": "".join(getattr(c, "text", "") for c in result.content)}
+        if request.headers.get("hx-request"):
+            return PlainTextResponse(f"{tool_name}({params}) -> {output}")
+        return JSONResponse({"params": params, "output": output})
 
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request) -> HTMLResponse:

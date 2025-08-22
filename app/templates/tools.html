@@ -2,7 +2,13 @@
   {% for mod in tools %}
   <li class="tool-item">
     <span class="tool-name">{{ mod }}</span>
-    <button 
+    <button
+      class="test-button"
+      hx-post="/tools/{{ mod }}/test"
+      hx-target="#message"
+      hx-swap="innerHTML"
+    >Test</button>
+    <button
       class="remove-button"
       hx-delete="/tools/{{ mod }}"
       hx-target="#tools"

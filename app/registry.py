@@ -48,6 +48,7 @@ def write_tool_module(
     tool_name: str,
     description: str,
     arg_spec: List[Tuple[str, str]],
+    example_params: Dict[str, Any] | None = None,
 ) -> str:
     """
     Persist a generated module that wraps a function from ``code_blob`` as an MCP tool.
@@ -84,6 +85,11 @@ def register(mcp):
         path = os.path.join(base_dir, f"{module_name}.py")
         with open(path, "w", encoding="utf-8") as f:
             f.write(file_text)
+        # Persist example parameters alongside the module for later testing
+        meta_path = os.path.join(base_dir, f"{module_name}.json")
+        with open(meta_path, "w", encoding="utf-8") as mf:
+            import json
+            json.dump({"tool_name": tool_name, "example_params": example_params or {}}, mf)
         return path
     return _impl()
 
@@ -128,8 +134,36 @@ def delete_tool_module(base_dir: str, module_name: str) -> bool:
     def _impl() -> bool:
         import os
         path = os.path.join(base_dir, f"{module_name}.py")
+        meta_path = os.path.join(base_dir, f"{module_name}.json")
+        removed = False
         if os.path.exists(path):
             os.remove(path)
-            return True
-        return False
+            removed = True
+        if os.path.exists(meta_path):
+            os.remove(meta_path)
+            removed = True or removed
+        return removed
+    return _impl()
+
+
+def load_example_params(base_dir: str) -> Dict[str, Dict[str, Any]]:
+    """Load stored example parameters for each module in ``base_dir``."""
+    def _impl() -> Dict[str, Dict[str, Any]]:
+        import os
+        import json
+        data: Dict[str, Dict[str, Any]] = {}
+        if not os.path.isdir(base_dir):
+            return data
+        for fn in os.listdir(base_dir):
+            if fn.endswith('.json'):
+                path = os.path.join(base_dir, fn)
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        meta = json.load(f)
+                    module = os.path.splitext(fn)[0]
+                    params = meta.get('example_params', {})
+                    data[module] = params
+                except Exception:
+                    continue
+        return data
     return _impl()
