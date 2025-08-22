@@ -37,9 +37,12 @@ def choose_tools_with_gpt(code: str, fn_summaries: List[Dict[str, Any]]) -> List
     can be parsed.
     """
     def _call_openai() -> List[Dict[str, Any]]:
+        import os
+        if os.getenv("USE_MOCK_LLM"):
+            name = os.getenv("MOCK_LLM_FUNCTION", "add")
+            return [{"original_name": name, "tool_name": name, "description": f"{name} tool"}]
         # Deferred import: only import when the function is called.
         from openai import OpenAI
-        import os
         import json
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         # Compose a concise system prompt instructing the model to return JSON.

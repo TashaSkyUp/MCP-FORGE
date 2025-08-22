@@ -39,7 +39,16 @@ def _parse_functions(code: str) -> List[Dict[str, Any]]:
                             except Exception:
                                 ann = "Any"
                     args.append((a.arg, ann))
-                out.append({"name": name, "doc": doc, "args": args})
+                ret = "Any"
+                if node.returns is not None:
+                    if isinstance(node.returns, ast.Name):
+                        ret = node.returns.id
+                    else:
+                        try:
+                            ret = inspect.getsource(ast.fix_missing_locations(node.returns))
+                        except Exception:
+                            ret = "Any"
+                out.append({"name": name, "doc": doc, "args": args, "returns": ret})
         return out
     return _impl()
 
@@ -51,20 +60,25 @@ def build_server():
 
         REG_DIR = ensure_dirs("./registry")
         mcp = FastMCP("MCPForge (single port)")
+        module_tool_map: Dict[str, str] = {}
 
         @mcp.tool(name="collector.list", description="List collected tool modules currently registered.")
         def list_collected() -> List[str]:
-            import os
-            names = []
-            if os.path.isdir(REG_DIR):
-                for fn in sorted(os.listdir(REG_DIR)):
-                    if fn.endswith(".py"):
-                        names.append(fn[:-3])
-            return names
+            return sorted(list(module_tool_map.keys()))
 
         @mcp.tool(name="collector.remove", description="Remove a collected tool module by module name (not tool name).")
         def remove_collected(module_name: str) -> bool:
+            tool_name = module_tool_map.get(module_name)
+            if tool_name:
+                try:
+                    mcp.remove_tool(tool_name)
+                except Exception:
+                    # It may have already been removed, or not exist.
+                    pass
+            # Now remove the module file
             ok = delete_tool_module(REG_DIR, module_name)
+            if ok and module_name in module_tool_map:
+                del module_tool_map[module_name]
             return ok
 
         @mcp.tool(name="collector.ingest_python", description="Ingest a Python snippet and expose chosen functions as tools.")
@@ -88,32 +102,56 @@ def build_server():
                 orig = c.get("original_name")
                 tname = c.get("tool_name") or orig
                 desc = c.get("description") or f"{orig} tool"
-                arg_spec = next((f["args"] for f in funcs if f["name"] == orig), [])
+                func_info = next((f for f in funcs if f["name"] == orig), None)
+                if not func_info:
+                    continue
+                arg_spec = func_info["args"]
                 mod_name = f"{base}_{idx}"
                 write_tool_module("./registry", mod_name, code, orig, tname, desc, arg_spec)
                 created.append(mod_name)
                 idx += 1
-            load_all_registered(mcp, "./registry")
+            new_map = load_all_registered(mcp, "./registry")
+            module_tool_map.update(new_map)
             return {"created": created}
 
         @mcp.tool(name="forge_health", description="Health check for the MCP Forge server.")
         def forge_health() -> str:
             import platform
             import sys
-            return f"ok | py={sys.version.split()[0]} | os={platform.system()}"
+            import os
+            from openai import OpenAI, AuthenticationError
 
-        load_all_registered(mcp, "./registry")
+            py_ver = sys.version.split()[0]
+            os_name = platform.system()
+            report = [f"py={py_ver}", f"os={os_name}"]
+            # Check for OpenAI API key and connectivity
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                report.append("openai=no-key")
+            else:
+                try:
+                    client = OpenAI(api_key=api_key)
+                    client.models.list()
+                    report.append("openai=ok")
+                except AuthenticationError:
+                    report.append("openai=auth-failed")
+                except Exception:
+                    report.append("openai=connect-failed")
+            return "ok | " + " | ".join(report)
+
+        module_tool_map.update(load_all_registered(mcp, "./registry"))
         return mcp
     return _impl()
 
 def main(host: str | None = None, port: int | None = None):
-    """Run the server using SSE on a single port."""
+    """Run the server using a configurable transport on a single port."""
     def _impl():
         import os
         mcp = build_server()
         h = host or os.getenv("HOST", "127.0.0.1")
         p = port or int(os.getenv("PORT", "8000"))
-        mcp.run(transport="sse", host=h, port=p)
+        transport = os.getenv("MCP_TRANSPORT", "sse")
+        mcp.run(transport=transport, host=h, port=p)
     return _impl()
 
 if __name__ == "__main__":
