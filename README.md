@@ -18,6 +18,8 @@ dynamically registers new tools on the fly.
 - Runs over SSE/HTTP on a single port (default 8000) — no need to allocate extra ports.
 - All imports in this package occur inside function bodies to comply with
   user preferences.
+- Web-based management UI and REST endpoints for creating, listing, and
+  removing tools.
 
 ## Requirements
 
@@ -48,9 +50,8 @@ You can customise the host/port via environment variables:
 HOST=0.0.0.0 PORT=8765 python run.py
 ```
 
-By default, the server uses the `sse` transport, which exposes an HTTP endpoint at
-`/mcp`. You can change the transport by setting `MCP_TRANSPORT` (e.g. `http` or
-`streamable-http`) but SSE is recommended.
+The web interface and REST endpoints are served from the root URL. The MCP
+server is available on the `/sse` path for SSE clients.
 
 ## Ingesting Code
 
