@@ -7,7 +7,7 @@ inside functions.
 """
 
 from __future__ import annotations
-from typing import List, Tuple
+from typing import List, Tuple, Any
 
 def ensure_dirs(base_dir: str) -> str:
     """Ensure ``base_dir`` exists, creating it if necessary, and return it."""
@@ -51,7 +51,7 @@ def write_tool_module(
 
 def register(mcp):
     """Register tool '{tool_name}' from collected code snippet."""
-    def _wrapper({args_decl}) -> str:
+    def _wrapper({args_decl}) -> Any:
         # All imports inside function, per style preference.
         import types
         ns = {{}}
@@ -62,7 +62,7 @@ def register(mcp):
             raise ValueError("Expected function '{func_name}' not found in snippet.")
         target = ns["{func_name}"]
         result = target({kwargs_pass})
-        return result
+        return str(result)
 
     # Decorate after definition to register with FastMCP
     _decorator = mcp.tool(name="{tool_name}", description={json.dumps(description)})

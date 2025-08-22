@@ -14,6 +14,7 @@ It also exposes a ``forge_health`` tool to check the server health.
 
 from __future__ import annotations
 from typing import List, Tuple, Dict, Any
+from .llm import choose_tools_with_gpt
 
 def _parse_functions(code: str) -> List[Dict[str, Any]]:
     """Parse top-level functions in a Python snippet to extract signatures."""
@@ -28,13 +29,16 @@ def _parse_functions(code: str) -> List[Dict[str, Any]]:
                 doc = ast.get_docstring(node) or ""
                 args: List[Tuple[str, str]] = []
                 for a in node.args.args:
-                    ann = None
+                    ann = "Any"
                     if a.annotation is not None:
-                        try:
-                            ann = inspect.getsource(ast.fix_missing_locations(a.annotation))
-                        except Exception:
-                            ann = None
-                    args.append((a.arg, (ann or "str")))
+                        if isinstance(a.annotation, ast.Name):
+                            ann = a.annotation.id
+                        else:
+                            try:
+                                ann = inspect.getsource(ast.fix_missing_locations(a.annotation))
+                            except Exception:
+                                ann = "Any"
+                    args.append((a.arg, ann))
                 out.append({"name": name, "doc": doc, "args": args})
         return out
     return _impl()
@@ -44,7 +48,6 @@ def build_server():
     def _impl():
         from fastmcp import FastMCP
         from .registry import ensure_dirs, load_all_registered, write_tool_module, safe_mod_name, delete_tool_module
-        from .llm import choose_tools_with_gpt
 
         REG_DIR = ensure_dirs("./registry")
         mcp = FastMCP("MCPForge (single port)")
