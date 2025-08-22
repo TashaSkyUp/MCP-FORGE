@@ -1,26 +1,44 @@
 import os
 import time
-import threading
+import shutil
+import subprocess
 import pytest
-from app.server import main as server_main
 
 TEST_HOST = "127.0.0.1"
 TEST_PORT = 8765
 
-@pytest.fixture(scope="session")
-def server():
-    """A pytest fixture to run the MCPForge server in a background thread."""
-    os.environ["HOST"] = TEST_HOST
-    os.environ["PORT"] = str(TEST_PORT)
-    os.environ["MCP_TRANSPORT"] = "sse"
+@pytest.fixture(scope="function")
+def server(request):
+    """A pytest fixture to run the MCPForge server as a subprocess."""
+    env = os.environ.copy()
+    env["HOST"] = TEST_HOST
+    env["PORT"] = str(TEST_PORT)
+    env["MCP_TRANSPORT"] = "sse"
 
-    server_thread = threading.Thread(target=server_main)
-    server_thread.daemon = True
-    server_thread.start()
+    if hasattr(request, "param"):
+        env.update(request.param)
+
+    # Clean up the registry directory before starting the server
+    if os.path.exists("./registry"):
+        shutil.rmtree("./registry")
+    os.makedirs("./registry")
+
+    # Start the server as a subprocess
+    server_process = subprocess.Popen(
+        ["python", "run.py"],
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
 
     # Give the server a moment to start up
     time.sleep(2)
 
     yield
 
-    # Teardown: The daemon thread will be killed when the main thread exits.
+    # Teardown: terminate the server process
+    server_process.terminate()
+    try:
+        server_process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        server_process.kill()
