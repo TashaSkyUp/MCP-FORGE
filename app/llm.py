@@ -80,3 +80,29 @@ def choose_tools_with_gpt(code: str, fn_summaries: List[Dict[str, Any]]) -> List
         return []
 
     return _call_openai()
+
+
+def rewrite_snippet_with_gpt(text: str) -> str:
+    """Rewrite an ambiguous snippet into valid Python code using GPT."""
+
+    def _call_openai() -> str:
+        import os
+        if os.getenv("USE_MOCK_LLM"):
+            # For tests, allow overriding the rewritten snippet
+            return os.getenv("MOCK_LLM_SNIPPET", text)
+        from openai import OpenAI
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        system = (
+            "You transform incomplete or pseudo-code into a complete, valid "
+            "Python function snippet. Return only runnable Python code."
+        )
+        rsp = client.responses.create(
+            model="gpt-4.1-nano",
+            input=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": [{"type": "input_text", "text": text}]},
+            ],
+        )
+        return rsp.output_text
+
+    return _call_openai()

@@ -51,6 +51,59 @@ def add(a: int, b: int) -> int:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("server", [{"USE_MOCK_LLM": "1"}], indirect=True)
+async def test_ingest_fenced_snippet(server):
+    """Ingests a snippet wrapped in Markdown fences."""
+    client = Client(f"http://{TEST_HOST}:{TEST_PORT}/sse")
+
+    code_snippet = """Here is a tool:
+```python
+def add(a: int, b: int) -> int:
+    return a + b
+```
+"""
+    snippet_name = "fenced"
+
+    async with client:
+        response = await client.call_tool(
+            "collector.ingest_python", {"snippet_name": snippet_name, "code": code_snippet}
+        )
+        assert response is not None
+        assert len(response.data.get("created", [])) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "server",
+    [
+        {
+            "USE_MOCK_LLM": "1",
+            "MOCK_LLM_SNIPPET": "def multiply(a: int, b: int) -> int:\n    return a * b",
+            "MOCK_LLM_FUNCTION": "multiply",
+        }
+    ],
+    indirect=True,
+)
+async def test_ingest_ambiguous_snippet(server):
+    """Delegates vague text to GPT to construct code."""
+    client = Client(f"http://{TEST_HOST}:{TEST_PORT}/sse")
+
+    snippet_name = "ambiguous"
+    code_snippet = "multiply two numbers"
+
+    async with client:
+        response = await client.call_tool(
+            "collector.ingest_python", {"snippet_name": snippet_name, "code": code_snippet}
+        )
+        assert response is not None
+        assert len(response.data.get("created", [])) == 1
+
+        tool_response = await client.call_tool("multiply", {"a": 2, "b": 3})
+        assert tool_response is not None
+        assert int(tool_response.content[0].text) == 6
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "server", [{"USE_MOCK_LLM": "1", "MOCK_LLM_FUNCTION": "subtract"}], indirect=True
 )
