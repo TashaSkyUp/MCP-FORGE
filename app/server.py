@@ -249,8 +249,8 @@ def build_app():
     @app.delete("/tools/{module}")
     async def web_remove_tool(module: str, request: Request) -> Response:
         ok = mcp.remove_collected(module)
-        tools = mcp.list_collected()
         if request.headers.get("hx-request"):
+            tools = mcp.list_collected()
             headers = {"HX-Trigger": "toolRemoved" if ok else "toolError"}
             return templates.TemplateResponse(
                 "tools.html", {"request": request, "tools": tools}, headers=headers
