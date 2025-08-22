@@ -21,7 +21,8 @@ def _parse_functions(code: str) -> List[Dict[str, Any]]:
     def _impl() -> List[Dict[str, Any]]:
         import ast
         import inspect
-        tree = ast.parse(code)
+        import textwrap
+        tree = ast.parse(textwrap.dedent(code))
         out: List[Dict[str, Any]] = []
         for node in tree.body:
             if isinstance(node, ast.FunctionDef):
@@ -87,7 +88,10 @@ def build_server():
             if not funcs:
                 return {"created": [], "reason": "no functions found"}
             summaries = [{"name": f["name"], "doc": f["doc"], "args": f["args"]} for f in funcs]
-            chosen = choose_tools_with_gpt(code, summaries)
+            try:
+                chosen = choose_tools_with_gpt(code, summaries)
+            except Exception:
+                chosen = []
             if not chosen:
                 f0 = funcs[0]
                 chosen = [{
@@ -140,18 +144,82 @@ def build_server():
             return "ok | " + " | ".join(report)
 
         module_tool_map.update(load_all_registered(mcp, "./registry"))
+
+        # Expose helper functions for the web interface
+        mcp.list_collected = list_collected.fn  # type: ignore[attr-defined]
+        mcp.remove_collected = remove_collected.fn  # type: ignore[attr-defined]
+        mcp.ingest_snippet = ingest_python.fn  # type: ignore[attr-defined]
+        mcp.forge_health = forge_health.fn  # type: ignore[attr-defined]
+
         return mcp
     return _impl()
 
+
+def build_app():
+    """Create the FastAPI web application that wraps the MCP server."""
+
+    mcp = build_server()
+
+    from fastapi import FastAPI, Request, HTTPException
+    from fastapi.responses import PlainTextResponse, HTMLResponse, JSONResponse
+    from fastapi.templating import Jinja2Templates
+    globals()["Request"] = Request
+
+    app = FastAPI(title="MCPForge Web UI")
+    templates = Jinja2Templates(directory="app/templates")
+
+    @app.get("/health")
+    async def web_health() -> PlainTextResponse:
+        return PlainTextResponse(mcp.forge_health())
+
+    @app.get("/tools")
+    async def web_list_tools() -> list[str]:
+        return mcp.list_collected()
+
+    @app.post("/tools", status_code=201)
+    async def web_create_tool(request: Request) -> JSONResponse:
+        if request.headers.get("content-type", "").startswith("application/json"):
+            data = await request.json()
+        else:
+            data = await request.form()
+        snippet_name = data.get("snippet_name")
+        code = data.get("code")
+        if not snippet_name or not code:
+            raise HTTPException(400, "snippet_name and code required")
+        import os
+        if not os.getenv("OPENAI_API_KEY"):
+            os.environ["USE_MOCK_LLM"] = "1"
+        result = mcp.ingest_snippet(snippet_name, code)
+        status = 201 if result.get("created") else 400
+        return JSONResponse(result, status_code=status)
+
+    @app.delete("/tools/{module}")
+    async def web_remove_tool(module: str) -> dict[str, bool]:
+        ok = mcp.remove_collected(module)
+        return {"removed": ok}
+
+    @app.get("/", response_class=HTMLResponse)
+    async def index(request: Request) -> HTMLResponse:
+        tools = mcp.list_collected()
+        return templates.TemplateResponse("index.html", {"request": request, "tools": tools})
+
+    # Mount the MCP server's SSE app under /sse
+    app.mount("/sse", mcp.sse_app(path="/"))
+
+    return app
+
 def main(host: str | None = None, port: int | None = None):
-    """Run the server using a configurable transport on a single port."""
+    """Run the combined MCP and web servers on a single port."""
+
     def _impl():
         import os
-        mcp = build_server()
+        import uvicorn
+
+        app = build_app()
         h = host or os.getenv("HOST", "127.0.0.1")
         p = port or int(os.getenv("PORT", "8000"))
-        transport = os.getenv("MCP_TRANSPORT", "sse")
-        mcp.run(transport=transport, host=h, port=p)
+        uvicorn.run(app, host=h, port=p)
+
     return _impl()
 
 if __name__ == "__main__":

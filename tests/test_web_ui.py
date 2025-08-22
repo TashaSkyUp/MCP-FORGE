@@ -5,12 +5,10 @@ TEST_HOST = "127.0.0.1"
 TEST_PORT = 8765
 BASE_URL = f"http://{TEST_HOST}:{TEST_PORT}"
 
-pytestmark = pytest.mark.xfail(reason="Web UI endpoints not yet implemented")
-
 
 @pytest.mark.asyncio
 async def test_health_endpoint(server):
-    """The planned /health endpoint should return server status."""
+    """The /health endpoint should return server status."""
     async with httpx.AsyncClient() as client:
         resp = await client.get(f"{BASE_URL}/health")
         assert resp.status_code == 200
@@ -19,7 +17,7 @@ async def test_health_endpoint(server):
 
 @pytest.mark.asyncio
 async def test_tool_lifecycle(server):
-    """End-to-end tool creation, listing, and deletion via planned HTTP endpoints."""
+    """End-to-end tool creation, listing, and deletion via HTTP endpoints."""
     code_snippet = """
     def add(a: int, b: int) -> int:
         return a + b
