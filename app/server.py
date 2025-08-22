@@ -247,7 +247,7 @@ def build_app():
         return JSONResponse(result, status_code=status)
 
     @app.delete("/tools/{module}")
-    async def web_remove_tool(module: str, request: Request):
+    async def web_remove_tool(module: str, request: Request) -> Response:
         ok = mcp.remove_collected(module)
         tools = mcp.list_collected()
         if request.headers.get("hx-request"):
