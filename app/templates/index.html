@@ -2,26 +2,42 @@
 <html>
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>MCPForge</title>
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <h1>MCPForge Tool Manager</h1>
-  <form hx-post="/tools" hx-target="#tools" hx-swap="outerHTML">
-    <label>Snippet Name <input type="text" name="snippet_name"/></label><br/>
-    <label>Code Snippet<br/>
-      <textarea name="code" rows="6" cols="60"></textarea>
-    </label><br/>
-    <button type="submit">Ingest</button>
-  </form>
-  <h2>Registered Modules</h2>
-  <ul id="tools">
-    {% for mod in tools %}
-    <li>
-      {{ mod }}
-      <button hx-delete="/tools/{{ mod }}" hx-target="#tools" hx-swap="outerHTML">Remove</button>
-    </li>
-    {% endfor %}
-  </ul>
+  <header>
+    <h1>MCPForge Tool Manager</h1>
+  </header>
+  <main>
+    <form hx-post="/tools" hx-target="#tools" hx-swap="outerHTML">
+      <fieldset>
+        <legend>Ingest Module</legend>
+        <label for="snippet_name">Snippet Name</label>
+        <input id="snippet_name" type="text" name="snippet_name" placeholder="Enter snippet name" required />
+
+        <label for="code">Code Snippet</label>
+        <textarea id="code" name="code" rows="6" cols="60" placeholder="Paste your code snippet here" required aria-describedby="code_help"></textarea>
+        <p id="code_help">Provide a Python snippet with at least one function.</p>
+
+        <button type="submit">Ingest</button>
+      </fieldset>
+    </form>
+    <h2>Registered Modules</h2>
+    {% if tools %}
+    <ul id="tools">
+      {% for mod in tools %}
+      <li>
+        {{ mod }}
+        <button class="remove-btn" hx-delete="/tools/{{ mod }}" hx-target="closest li" hx-swap="outerHTML" hx-confirm="Remove {{ mod }}?">Remove</button>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p id="no-tools">No modules registered.</p>
+    {% endif %}
+  </main>
 </body>
 </html>

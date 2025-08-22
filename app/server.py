@@ -207,7 +207,7 @@ def build_app():
     mcp = build_server()
 
     from fastapi import FastAPI, Request, HTTPException
-    from fastapi.responses import PlainTextResponse, HTMLResponse, JSONResponse
+    from fastapi.responses import PlainTextResponse, HTMLResponse, JSONResponse, Response
     from fastapi.templating import Jinja2Templates
     globals()["Request"] = Request
 
@@ -217,6 +217,12 @@ def build_app():
     @app.get("/health")
     async def web_health() -> PlainTextResponse:
         return PlainTextResponse(mcp.forge_health())
+
+    @app.get("/static/style.css", response_class=PlainTextResponse)
+    async def style_css() -> PlainTextResponse:
+        from pathlib import Path
+        css = Path("app/static/style.css").read_text()
+        return PlainTextResponse(css)
 
     @app.get("/tools")
     async def web_list_tools() -> list[str]:
@@ -240,9 +246,9 @@ def build_app():
         return JSONResponse(result, status_code=status)
 
     @app.delete("/tools/{module}")
-    async def web_remove_tool(module: str) -> dict[str, bool]:
+    async def web_remove_tool(module: str) -> Response:
         ok = mcp.remove_collected(module)
-        return {"removed": ok}
+        return Response(status_code=200 if ok else 404)
 
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request) -> HTMLResponse:
