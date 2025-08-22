@@ -51,20 +51,25 @@ def build_server():
 
         REG_DIR = ensure_dirs("./registry")
         mcp = FastMCP("MCPForge (single port)")
+        module_tool_map: Dict[str, str] = {}
 
         @mcp.tool(name="collector.list", description="List collected tool modules currently registered.")
         def list_collected() -> List[str]:
-            import os
-            names = []
-            if os.path.isdir(REG_DIR):
-                for fn in sorted(os.listdir(REG_DIR)):
-                    if fn.endswith(".py"):
-                        names.append(fn[:-3])
-            return names
+            return sorted(list(module_tool_map.keys()))
 
         @mcp.tool(name="collector.remove", description="Remove a collected tool module by module name (not tool name).")
         def remove_collected(module_name: str) -> bool:
+            tool_name = module_tool_map.get(module_name)
+            if tool_name:
+                try:
+                    mcp.remove_tool(tool_name)
+                except Exception:
+                    # It may have already been removed, or not exist.
+                    pass
+            # Now remove the module file
             ok = delete_tool_module(REG_DIR, module_name)
+            if ok and module_name in module_tool_map:
+                del module_tool_map[module_name]
             return ok
 
         @mcp.tool(name="collector.ingest_python", description="Ingest a Python snippet and expose chosen functions as tools.")
@@ -91,9 +96,11 @@ def build_server():
                 arg_spec = next((f["args"] for f in funcs if f["name"] == orig), [])
                 mod_name = f"{base}_{idx}"
                 write_tool_module("./registry", mod_name, code, orig, tname, desc, arg_spec)
+                # Manually register and add to map
                 created.append(mod_name)
                 idx += 1
-            load_all_registered(mcp, "./registry")
+            new_map = load_all_registered(mcp, "./registry")
+            module_tool_map.update(new_map)
             return {"created": created}
 
         @mcp.tool(name="forge_health", description="Health check for the MCP Forge server.")
@@ -102,7 +109,7 @@ def build_server():
             import sys
             return f"ok | py={sys.version.split()[0]} | os={platform.system()}"
 
-        load_all_registered(mcp, "./registry")
+        module_tool_map.update(load_all_registered(mcp, "./registry"))
         return mcp
     return _impl()
 
