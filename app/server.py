@@ -22,7 +22,13 @@ def _parse_functions(code: str) -> List[Dict[str, Any]]:
         import ast
         import inspect
         import textwrap
-        tree = ast.parse(textwrap.dedent(code))
+
+        try:
+            tree = ast.parse(textwrap.dedent(code))
+        except SyntaxError:
+            # If the snippet can't be parsed, simply report no functions instead of
+            # propagating the syntax error up to the caller.
+            return []
         out: List[Dict[str, Any]] = []
         for node in tree.body:
             if isinstance(node, ast.FunctionDef):
@@ -56,23 +62,40 @@ def _parse_functions(code: str) -> List[Dict[str, Any]]:
 
 def _prepare_snippet(text: str) -> str:
     """Normalize user-submitted text to executable Python code."""
+
     def _impl() -> str:
         import re
         import ast
         import textwrap
+
+        # First try to extract fenced code blocks `````python ... `````".
         fence = re.search(r"```(?:python)?\n([\s\S]*?)```", text)
         candidate = fence.group(1) if fence else text
+
+        # If no fences are present but a ``def`` appears later in the text,
+        # heuristically grab everything from the first ``def`` onward.  This
+        # lets users submit prose followed by code without explicit fencing.
+        if not fence and "def " in candidate:
+            start = candidate.find("def ")
+            candidate = candidate[start:]
+
         candidate = textwrap.dedent(candidate).strip()
+
         try:
             ast.parse(candidate)
             return candidate
         except SyntaxError:
             rewritten = rewrite_snippet_with_gpt(candidate)
+            # The rewrite may include markdown fences; extract the code if present.
+            fence2 = re.search(r"```(?:python)?\n([\s\S]*?)```", rewritten)
+            rewritten_candidate = fence2.group(1) if fence2 else rewritten
+            rewritten_candidate = textwrap.dedent(rewritten_candidate).strip()
             try:
-                ast.parse(rewritten)
-                return rewritten
+                ast.parse(rewritten_candidate)
+                return rewritten_candidate
             except Exception:
                 return candidate
+
     return _impl()
 
 def build_server():

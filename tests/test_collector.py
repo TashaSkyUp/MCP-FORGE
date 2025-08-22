@@ -1,3 +1,6 @@
+import os
+import re
+
 import pytest
 import asyncio
 from fastmcp import Client
@@ -101,6 +104,59 @@ async def test_ingest_ambiguous_snippet(server):
         tool_response = await client.call_tool("multiply", {"a": 2, "b": 3})
         assert tool_response is not None
         assert int(tool_response.content[0].text) == 6
+
+
+@pytest.mark.asyncio
+async def test_ingest_exponential_growth_snippet(server):
+    """Generates an exponential growth function from descriptive text using a live LLM."""
+    client = Client(f"http://{TEST_HOST}:{TEST_PORT}/sse")
+
+    snippet_name = "No Clue"
+    code_snippet = "I need a function that calculates exponential organic growth"
+
+    async with client:
+        response = await client.call_tool(
+            "collector.ingest_python", {"snippet_name": snippet_name, "code": code_snippet}
+        )
+        assert response is not None
+        created = response.data.get("created", [])
+        assert len(created) == 1
+        module_name = created[0]
+
+        # Inspect generated module to determine tool name and argument names.
+        path = os.path.join("registry", f"{module_name}.py")
+        with open(path, "r", encoding="utf-8") as f:
+            text = f.read()
+        tool_match = re.search(r'mcp\.tool\(name="([^\"]+)"', text)
+        assert tool_match is not None
+        tool_name = tool_match.group(1)
+        args_match = re.search(r"def _wrapper\(([^)]*)\)", text)
+        assert args_match is not None
+        arg_names = [a.split(":")[0].strip() for a in args_match.group(1).split(",") if a.strip()]
+        assert len(arg_names) == 3
+        params = {arg_names[0]: 100, arg_names[1]: 0.05, arg_names[2]: 10}
+
+        growth_response = await client.call_tool(tool_name, params)
+        assert growth_response is not None
+        assert float(growth_response.content[0].text) == pytest.approx(162.8894626777442)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [{"USE_MOCK_LLM": "1"}], indirect=True)
+async def test_ingest_unparsable_snippet(server):
+    """Gracefully handles snippets that remain unparsable after rewrite."""
+    client = Client(f"http://{TEST_HOST}:{TEST_PORT}/sse")
+
+    snippet_name = "gibberish"
+    code_snippet = "This text cannot possibly be parsed as valid Python code"
+
+    async with client:
+        response = await client.call_tool(
+            "collector.ingest_python", {"snippet_name": snippet_name, "code": code_snippet}
+        )
+        assert response is not None
+        assert response.data.get("created") == []
+        assert response.data.get("reason") == "no functions found"
 
 
 @pytest.mark.asyncio
