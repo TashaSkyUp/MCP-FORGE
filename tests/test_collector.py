@@ -58,4 +58,4 @@ def add(a: int, b: int) -> int:
         tool_name = "add"
         add_response = await client.call_tool(tool_name, {"a": 1, "b": 2})
         assert add_response is not None
-        assert add_response.data == 3
+        assert add_response.content[0].text == "3"
