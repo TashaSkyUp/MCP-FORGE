@@ -10,6 +10,9 @@ TEST_PORT = 8765
 @pytest.fixture(scope="session")
 def server():
     """A pytest fixture to run the MCPForge server in a background thread."""
+    import shutil
+    if os.path.exists("./registry"):
+        shutil.rmtree("./registry")
     os.environ["HOST"] = TEST_HOST
     os.environ["PORT"] = str(TEST_PORT)
     os.environ["MCP_TRANSPORT"] = "sse"

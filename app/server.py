@@ -106,14 +106,14 @@ def build_server():
         return mcp
     return _impl()
 
-def main():
+def main(host: str | None = None, port: int | None = None):
     """Run the server using SSE on a single port."""
     def _impl():
         import os
         mcp = build_server()
-        host = os.getenv("HOST", "127.0.0.1")
-        port = int(os.getenv("PORT", "8000"))
-        mcp.run(transport="sse", host=host, port=port)
+        h = host or os.getenv("HOST", "127.0.0.1")
+        p = port or int(os.getenv("PORT", "8000"))
+        mcp.run(transport="sse", host=h, port=p)
     return _impl()
 
 if __name__ == "__main__":
