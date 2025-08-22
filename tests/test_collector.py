@@ -105,6 +105,39 @@ async def test_ingest_ambiguous_snippet(server):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
+    "server",
+    [
+        {
+            "USE_MOCK_LLM": "1",
+            "MOCK_LLM_SNIPPET": "def organic_growth(initial: float, rate: float, periods: int) -> float:\n    return initial * (1 + rate) ** periods",
+            "MOCK_LLM_FUNCTION": "organic_growth",
+        }
+    ],
+    indirect=True,
+)
+async def test_ingest_exponential_growth_snippet(server):
+    """Generates an exponential growth function from descriptive text."""
+    client = Client(f"http://{TEST_HOST}:{TEST_PORT}/sse")
+
+    snippet_name = "No Clue"
+    code_snippet = "I need a function that calculates exponential organic growth"
+
+    async with client:
+        response = await client.call_tool(
+            "collector.ingest_python", {"snippet_name": snippet_name, "code": code_snippet}
+        )
+        assert response is not None
+        assert len(response.data.get("created", [])) == 1
+
+        growth_response = await client.call_tool(
+            "organic_growth", {"initial": 100, "rate": 0.05, "periods": 10}
+        )
+        assert growth_response is not None
+        assert float(growth_response.content[0].text) == pytest.approx(162.8894626777442)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
     "server", [{"USE_MOCK_LLM": "1", "MOCK_LLM_FUNCTION": "subtract"}], indirect=True
 )
 async def test_remove_tool(server):
