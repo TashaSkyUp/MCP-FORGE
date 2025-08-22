@@ -2,3 +2,9 @@ fastmcp>=2.9.1
 openai>=1.0.0
 pytest
 pytest-asyncio
+
+# Dependencies for planned web-based admin interface
+fastapi
+uvicorn
+jinja2
+httpx
