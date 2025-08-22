@@ -22,7 +22,13 @@ def _parse_functions(code: str) -> List[Dict[str, Any]]:
         import ast
         import inspect
         import textwrap
-        tree = ast.parse(textwrap.dedent(code))
+
+        try:
+            tree = ast.parse(textwrap.dedent(code))
+        except SyntaxError:
+            # If the snippet can't be parsed, simply report no functions instead of
+            # propagating the syntax error up to the caller.
+            return []
         out: List[Dict[str, Any]] = []
         for node in tree.body:
             if isinstance(node, ast.FunctionDef):
@@ -80,9 +86,13 @@ def _prepare_snippet(text: str) -> str:
             return candidate
         except SyntaxError:
             rewritten = rewrite_snippet_with_gpt(candidate)
+            # The rewrite may include markdown fences; extract the code if present.
+            fence2 = re.search(r"```(?:python)?\n([\s\S]*?)```", rewritten)
+            rewritten_candidate = fence2.group(1) if fence2 else rewritten
+            rewritten_candidate = textwrap.dedent(rewritten_candidate).strip()
             try:
-                ast.parse(rewritten)
-                return rewritten
+                ast.parse(rewritten_candidate)
+                return rewritten_candidate
             except Exception:
                 return candidate
 
