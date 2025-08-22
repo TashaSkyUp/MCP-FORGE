@@ -62,7 +62,7 @@ def choose_tools_with_gpt(code: str, fn_summaries: List[Dict[str, Any]]) -> List
                     {"type": "input_text", "text": json.dumps(user)}
                 ]}
             ],
-            response_format={"type": "json_object"}
+            text={"format": "json_object"}
         )
         text = rsp.output_text
         try:
