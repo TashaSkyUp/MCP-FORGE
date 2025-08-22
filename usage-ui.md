@@ -1,0 +1,31 @@
+# MCPForge Web Interface Usage
+
+MCPForge ships with a small web interface for managing tools that have been
+collected from Python snippets. The interface is served from the root URL of
+the running server.
+
+## Open the UI
+
+1. Start the server:
+   ```bash
+   python run.py
+   ```
+   By default it listens on <http://127.0.0.1:8000/>.
+2. Point a web browser at the host and port where the server is running
+   (for example <http://127.0.0.1:8000/>).
+
+## Add a tool module
+
+1. In the *Snippet Name* field enter a short label. This label is used to name
+   the generated module.
+2. Paste the Python code that contains one or more functions into the *Code
+   Snippet* area.
+3. Click **Ingest**. The server calls the configured LLM to choose which
+   functions to expose. Newly created modules appear in the *Registered
+   Modules* list below the form.
+
+## Remove a tool module
+
+Each entry in the *Registered Modules* list has a **Remove** button. Clicking
+this button deletes the corresponding module and unregisters its tools. The
+list updates automatically after removal.
