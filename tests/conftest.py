@@ -27,8 +27,8 @@ def server(request):
     server_process = subprocess.Popen(
         ["python", "run.py"],
         env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
 
     # Give the server a moment to start up
