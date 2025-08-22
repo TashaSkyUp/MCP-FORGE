@@ -14,7 +14,7 @@ It also exposes a ``forge_health`` tool to check the server health.
 
 from __future__ import annotations
 from typing import List, Tuple, Dict, Any
-from .llm import choose_tools_with_gpt
+from .llm import choose_tools_with_gpt, rewrite_snippet_with_gpt
 
 def _parse_functions(code: str) -> List[Dict[str, Any]]:
     """Parse top-level functions in a Python snippet to extract signatures."""
@@ -53,6 +53,28 @@ def _parse_functions(code: str) -> List[Dict[str, Any]]:
         return out
     return _impl()
 
+
+def _prepare_snippet(text: str) -> str:
+    """Normalize user-submitted text to executable Python code."""
+    def _impl() -> str:
+        import re
+        import ast
+        import textwrap
+        fence = re.search(r"```(?:python)?\n([\s\S]*?)```", text)
+        candidate = fence.group(1) if fence else text
+        candidate = textwrap.dedent(candidate).strip()
+        try:
+            ast.parse(candidate)
+            return candidate
+        except SyntaxError:
+            rewritten = rewrite_snippet_with_gpt(candidate)
+            try:
+                ast.parse(rewritten)
+                return rewritten
+            except Exception:
+                return candidate
+    return _impl()
+
 def build_server():
     """Construct and return the FastMCP server configured with admin tools."""
     def _impl():
@@ -84,6 +106,7 @@ def build_server():
 
         @mcp.tool(name="collector.ingest_python", description="Ingest a Python snippet and expose chosen functions as tools.")
         def ingest_python(snippet_name: str, code: str) -> Dict[str, Any]:
+            code = _prepare_snippet(code)
             funcs = _parse_functions(code)
             if not funcs:
                 return {"created": [], "reason": "no functions found"}

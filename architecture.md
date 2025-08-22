@@ -53,7 +53,7 @@ MCPForge is a tool-collector server built with the Model Context Protocol and Fa
 ## Documentation
 - Additional guides: `development.md`, `testing.md`, `usage-mcp.md`, and `usage-ui.md` describe setup, testing, and usage from MCP clients or the web interface.
 
-## Changes to Implement
-- **Detect LLM-formatted submissions:** When a user paste includes narrative text followed by a fenced code block (e.g., Markdown ````python` fences), strip the fences and use only the code segment.
-- **Accept clean snippets:** If the provided text parses successfully with the `ast` module, treat it as ready-to-use code and proceed with normal ingestion.
-- **Delegate ambiguous input to GPT-4.1-nano:** For any other cases—such as incomplete or pseudocode snippets—invoke `gpt-4.1-nano` with AST helpers to reconstruct the function or tool before registration.
+## User Input Ingestion
+- **Detect LLM-formatted submissions:** When a user paste includes narrative text followed by a fenced code block (e.g., Markdown ```python fences), the server strips the fences and uses only the code segment.
+- **Accept clean snippets:** If the resulting text parses successfully with the `ast` module, the snippet is treated as ready-to-use code and normal ingestion proceeds.
+- **Delegate ambiguous input to GPT-4.1-nano:** For any other cases—such as incomplete or pseudocode snippets—the server invokes `gpt-4.1-nano` to rewrite the snippet into valid Python before attempting registration.
